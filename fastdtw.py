@@ -1,3 +1,5 @@
+import time
+import sys
 import pandas as pd
 import numpy as np
 
@@ -16,15 +18,15 @@ class Warp:
         return "(x: %d, y:%d, v:%.0f)" % (self.x, self.y, self.v)
 
     def getWarpPath(self):
-        def getPath(w):
-            r = []
-            if w.x!=0 or w.y!=0:
-                r = getPath(w.p)
+        r = []
+        w = self
 
-            r.append((w.x, w.y))
-            return r
+        while w.x!=0 or w.y!=0:
+            r.insert(0, (w.x, w.y))
+            w = w.p
 
-        return getPath(self)
+        r.insert(0, (w.x, w.y))
+        return r
 
     def printWarpGrid(self):
         def printGrid(w, n, m):
@@ -46,19 +48,18 @@ class Warp:
         printGrid(self, self.x+1, self.y+1)
         print()
 
-
 class DTW:
     def __init__(self, dfn):
         self.dfn = dfn
 
-    def dist(self, support, query, wp=None):
+    def dist(self, support, query, wp=None, rad=np.Inf):
         n = len(support) + 1
         m = len(query) + 1
         mem = np.empty((n, m), dtype=object)
         twp = []
         for i in np.arange(0, n):
             if wp is None:
-                twp.append((1, m))
+                twp.append((i-rad, i+rad))
 
             for j in np.arange(0, m):
                 mem[i, j] = Warp(i-1, j-1, np.Inf)
@@ -121,25 +122,18 @@ class FastDTW:
         self.dfn = dfn
         self.dtw = DTW(dfn)
 
-    def dist(self, support, query, rad=2):
+    def dist(self, support, query, rad=3):
         size = rad+2
 
         if len(support) <= size or len(query) <= size:
             return self.dtw.dist(support, query)
 
-        print('support', support)
-        print('query', query)
         s = support.shrink()
         q = query.shrink()
-        print('s', s)
-        print('q', q)
 
         warp = self.dist(s, q, rad)
-        print('warp', warp.getWarpPath())
         window = self.searchWindow(warp, s, q)
-        print('search window', window)
         window = self.expandWindow(window, rad)
-        print('expand window', window)
 
         return self.dtw.dist(support, query, window)
 
@@ -153,38 +147,52 @@ class FastDTW:
         return exp
 
     def searchWindow(self, warp, support, query):
-        wp = warp.getWarpPath()
-        sw = list()
+        wp = []
         prev_s = None
+        for w in warp.getWarpPath():
+            if prev_s is not None and prev_s == w[0]:
+                wp[-1].append(w[1])
+            else:
+                wp.append([w[1]])
+                prev_s = w[0]
+
+        sw = list()
         for i in range(0, len(wp)):
-            w = wp[i]
-            for s in support.par[w[0]]:
-                if prev_s is not None and prev_s == s:
-                    sw[-1].expand(query.par[w[1]])
-                else:
-                    sw.append(query.par[w[1]].copy())
-                    prev_s = s
+            js = wp[i]
+            for s in support.par[i]:
+                sw.append([])
+                for j in js:
+                    sw[-1].extend(query.par[j].copy())
 
         return sw
 
 def main():
     s = pd.read_csv("data.csv", names = ["ts", "val"])["val"].tolist()
     q = pd.read_csv("query.csv", names = ["ts", "val"])["val"].tolist()
-    n = 10
-    m = 10
-    query = Timeseries(q[50:50+m])
+    s_off = int(sys.argv[1])
+    s_lim = int(sys.argv[2])
+    q_off = int(sys.argv[3])
+    q_lim = int(sys.argv[4])
+    support = Timeseries(s[s_off:s_off+s_lim])
+    query = Timeseries(q[q_off:q_off+q_lim])
 
-    d = FastDTW(lambda x, y: abs(x-y))
-    #d = DTW(lambda x, y: abs(x-y))
+    fd = FastDTW(lambda x, y: abs(x-y))
+    d = DTW(lambda x, y: abs(x-y))
 
-    for i in np.arange(0, len(s)-len(q), 1024):
-        support = Timeseries(s[i:i+n])
-        w = d.dist(support, query)
+    t_d = time.time()
+    w_d = d.dist(support, query)
+    print("DTW = %s (%s)" % (w_d.v, time.time()-t_d))
 
-        print(w.getWarpPath())
-        w.printWarpGrid()
-        print(w.v)
-        break
-        
+    t_dr = time.time()
+    w_dr = d.dist(support, query, rad=3)
+    print("DTW with radius = %s (%s)" % (w_dr.v, time.time()-t_dr))
 
-main()
+    t_fd = time.time()
+    w_fd = fd.dist(support, query, rad=3)
+    print("FastDTW = %s (%s)" % (w_fd.v, time.time()-t_fd))
+
+    #print(w.getWarpPath())
+    #w.printWarpGrid()
+
+if __name__ == "__main__":
+    main()
