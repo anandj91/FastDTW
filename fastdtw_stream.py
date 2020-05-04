@@ -35,7 +35,7 @@ class BinHeap:
                 self.buf.append(b)
 
     def getLevel(self):
-        return self.lst[0].depth
+        return self.lst[0].depth if len(self.lst) > 0 else self.lim
 
     def __len__(self):
         return len(self.lst) + len(self.buf)
@@ -54,20 +54,22 @@ class BinHeap:
             return [len(self.lst)+i]
 
     def lower(self):
-        r = []
+        lst = []
+        buf = []
         lvl = self.getLevel()
         for l in self.lst:
-            if l.depth == lvl:
-                r.append(l.left)
-                r.append(l.right)
-            elif l.depth < lvl:
-                r.append(l)
+            lst.append(l.left)
+            lst.append(l.right)
+
+        for b in self.buf:
+            if b.depth == lvl-1:
+                lst.append(b)
             else:
-                assert False, "wrong depth list"
+                buf.append(b)
 
         bh = BinHeap(lvl-1, -1)
-        bh.lst = r
-        bh.buf = self.buf
+        bh.lst = lst
+        bh.buf = buf
         return bh
 
 class Timeseries:
@@ -106,10 +108,7 @@ class FastDTWStream:
 
         assert s.getLevel() == q.getLevel()
 
-        print('support', s)
-        print('query', q)
         warp = self.dtw.dist(s, q)
-        print('warp', warp.getWarpPath())
         while s.getLevel() != 0 or q.getLevel() != 0:
             window = self.searchWindow(warp, s, q)
             window = self.expandWindow(window, rad)
@@ -155,9 +154,10 @@ def main():
     s_lim = int(sys.argv[2])
     q_off = int(sys.argv[3])
     q_lim = int(sys.argv[4])
+    d = int(sys.argv[5])
 
-    support = BinHeap(2)
-    query = BinHeap(2)
+    support = BinHeap(d)
+    query = BinHeap(d)
     for i in range(s_off, s_off+s_lim):
         support.insert(Bin(s[i]))
     for i in range(q_off, q_off+q_lim):
