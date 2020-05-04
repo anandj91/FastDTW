@@ -102,14 +102,14 @@ class FastDTWStream:
         self.dfn = dfn
         self.dtw = DTW(dfn)
 
-    def dist(self, support, query, rad=3):
+    def dist(self, support, query, rad=3, depth=0):
         s = support
         q = query
 
         assert s.getLevel() == q.getLevel()
 
         warp = self.dtw.dist(s, q)
-        while s.getLevel() != 0 or q.getLevel() != 0:
+        while s.getLevel() != depth or q.getLevel() != depth:
             window = self.searchWindow(warp, s, q)
             window = self.expandWindow(window, rad)
             s = s.lower()
@@ -148,10 +148,11 @@ class FastDTWStream:
         return sw
 
 def main():
-    s = pd.read_csv("data_small.csv", names = ["ts", "val"])["val"].tolist()
+    s = pd.read_csv("data.csv", names = ["ts", "val"])["val"].tolist()
     q = pd.read_csv("query.csv", names = ["ts", "val"])["val"].tolist()
     lim = int(sys.argv[1])
     size = int(sys.argv[2])
+    depth = int(sys.argv[3])
 
     support = BinHeap(lim, size)
     query = BinHeap(lim, size)
@@ -160,9 +161,11 @@ def main():
         query.insert(Bin(q[i]))
 
     fd = FastDTWStream(lambda x, y: abs(x-y))
-    for i in range(len(s)):
-        support.insert(Bin(s[i]))
-        w_fd = fd.dist(HTimeseries(support), HTimeseries(query), rad=3)
+    step = 1
+    for i in range(0, len(s), step):
+        for j in range(i, i+step):
+            support.insert(Bin(s[i]))
+        w_fd = fd.dist(HTimeseries(support), HTimeseries(query), rad=3, depth=depth)
         print("%s, %s" % (s[i], w_fd.v))
 
 if __name__ == "__main__":
