@@ -91,34 +91,3 @@ class FastDTW:
                     sw[-1].extend(query.par[j].copy())
 
         return sw
-
-def main():
-    s = pd.read_csv("data.csv", names = ["ts", "val"])["val"].tolist()
-    q = pd.read_csv("query.csv", names = ["ts", "val"])["val"].tolist()
-    s_off = int(sys.argv[1])
-    s_lim = int(sys.argv[2])
-    q_off = int(sys.argv[3])
-    q_lim = int(sys.argv[4])
-    support = Timeseries(s[s_off:s_off+s_lim])
-    query = Timeseries(q[q_off:q_off+q_lim])
-
-    fd = FastDTW(lambda x, y: abs(x-y))
-    d = DTW(lambda x, y: abs(x-y))
-
-    t_d = time.time()
-    w_d = d.dist(support, query)
-    print("DTW = %s (%s)" % (w_d.v, time.time()-t_d))
-
-    t_dr = time.time()
-    w_dr = d.dist(support, query, rad=3)
-    print("DTW with radius = %s (%s)" % (w_dr.v, time.time()-t_dr))
-
-    t_fd = time.time()
-    w_fd = fd.dist(support, query, rad=3)
-    print("FastDTW = %s (%s)" % (w_fd.v, time.time()-t_fd))
-
-    #print(w.getWarpPath())
-    #w.printWarpGrid()
-
-if __name__ == "__main__":
-    main()

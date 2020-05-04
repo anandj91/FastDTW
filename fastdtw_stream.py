@@ -72,12 +72,12 @@ class BinHeap:
         bh.buf = buf
         return bh
 
-class Timeseries:
+class HTimeseries:
     def __init__(self, h):
         self.heap = h
 
     def lower(self):
-        return Timeseries(self.heap.lower())
+        return HTimeseries(self.heap.lower())
 
     def __len__(self):
         return len(self.heap)
@@ -146,32 +146,3 @@ class FastDTWStream:
                     sw[-1].extend(query.par(j))
 
         return sw
-
-def main():
-    s = pd.read_csv("data.csv", names = ["ts", "val"])["val"].tolist()
-    q = pd.read_csv("query.csv", names = ["ts", "val"])["val"].tolist()
-    s_off = int(sys.argv[1])
-    s_lim = int(sys.argv[2])
-    q_off = int(sys.argv[3])
-    q_lim = int(sys.argv[4])
-    d = int(sys.argv[5])
-
-    support = BinHeap(d)
-    query = BinHeap(d)
-    for i in range(s_off, s_off+s_lim):
-        support.insert(Bin(s[i]))
-    for i in range(q_off, q_off+q_lim):
-        query.insert(Bin(q[i]))
-
-    fd = FastDTWStream(lambda x, y: abs(x-y))
-    #d = DTW(lambda x, y: abs(x-y))
-
-    t_fd = time.time()
-    w_fd = fd.dist(Timeseries(support), Timeseries(query), rad=3)
-    print("FastDTW Stream = %s (%s)" % (w_fd.v, time.time()-t_fd))
-
-    #print(w.getWarpPath())
-    #w.printWarpGrid()
-
-if __name__ == "__main__":
-    main()
