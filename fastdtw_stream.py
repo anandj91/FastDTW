@@ -146,3 +146,24 @@ class FastDTWStream:
                     sw[-1].extend(query.par(j))
 
         return sw
+
+def main():
+    s = pd.read_csv("data_small.csv", names = ["ts", "val"])["val"].tolist()
+    q = pd.read_csv("query.csv", names = ["ts", "val"])["val"].tolist()
+    lim = int(sys.argv[1])
+    size = int(sys.argv[2])
+
+    support = BinHeap(lim, size)
+    query = BinHeap(lim, size)
+
+    for i in range(len(q)):
+        query.insert(Bin(q[i]))
+
+    fd = FastDTWStream(lambda x, y: abs(x-y))
+    for i in range(len(s)):
+        support.insert(Bin(s[i]))
+        w_fd = fd.dist(HTimeseries(support), HTimeseries(query), rad=3)
+        print("%s, %s" % (s[i], w_fd.v))
+
+if __name__ == "__main__":
+    main()
